@@ -1,0 +1,35 @@
+services:
+  # Backend API Service
+  - type: web
+    name: watchparty-api
+    runtime: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: CLIENT_URL
+        value: https://watchparty-app.onrender.com
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: watchparty-app
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://watchparty-api.onrender.com
+      - key: VITE_SOCKET_URL
+        value: https://watchparty-api.onrender.com
+    autoDeploy: true
