@@ -2,9 +2,12 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/watchparty', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+    if (!process.env.MONGODB_URI) {
+      throw new Error('❌ MONGODB_URI is not defined in environment variables');
+    }
+
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
     });
 
     console.log(`📦 MongoDB Connected: ${conn.connection.host}`);
@@ -24,7 +27,7 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error('Error connecting to MongoDB:', error.message);
-    // Don't exit the process, let the app continue and retry
+    // Retry connection every 5 seconds
     setTimeout(connectDB, 5000);
   }
 };
