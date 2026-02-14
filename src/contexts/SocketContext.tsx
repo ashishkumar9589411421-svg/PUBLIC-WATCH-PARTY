@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import type { Message, Participant, VideoState } from '@/types';
 import { toast } from 'sonner';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://watchparty-backend-jx6f.onrender.com';
 
 interface SocketContextType {
   socket: Socket | null;
