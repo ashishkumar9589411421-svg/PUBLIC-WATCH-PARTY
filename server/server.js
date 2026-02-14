@@ -14,20 +14,20 @@ const adminRoutes = require('./routes/admin');
 const socketHandler = require('./socket/socketHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 
-// Initialize Express app
 const app = express();
 const server = http.createServer(app);
 
-// Trust proxy for Render
 app.set('trust proxy', 1);
 
-// Security middleware
+// ========================
+// 🔐 SECURITY (Helmet)
+// ========================
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "*"],
+      connectSrc: ["'self'", "https:", "wss:"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com"],
       frameSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
@@ -37,105 +37,113 @@ app.use(helmet({
   },
 }));
 
-// CORS configuration
+// ========================
+// 🌍 CORS FIX (PRODUCTION SAFE)
+// ========================
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "*",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
   credentials: true,
 };
+
 app.use(cors(corsOptions));
 
-// Rate limiting
+// ========================
+// 🚦 RATE LIMITING
+// ========================
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
-// Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: 'Too many authentication attempts, please try again later.',
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// Body parsing middleware
+// ========================
+// 📦 BODY PARSER
+// ========================
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Connect to MongoDB
+// ========================
+// 🗄️ DATABASE
+// ========================
 connectDB();
 
-// API Routes
+// ========================
+// 📡 API ROUTES
+// ========================
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check endpoint
+// ========================
+// ❤️ HEALTH CHECK
+// ========================
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'WatchParty API Server',
     version: '1.0.0',
     status: 'running',
-    documentation: '/api/docs'
   });
 });
 
-// Socket.io setup with CORS
+// ========================
+// 🔌 SOCKET.IO
+// ========================
 const io = socketIo(server, {
   cors: corsOptions,
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ['websocket', 'polling'],
 });
 
-// Initialize socket handlers
 socketHandler(io);
 
-// Error handling middleware
+// ========================
+// ❌ ERROR HANDLING
+// ========================
 app.use(errorHandler);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Start server
+// ========================
+// 🚀 START SERVER
+// ========================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS enabled for: ${process.env.CLIENT_URL || '*'}`);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err.message);
-  // Close server & exit process
-  server.close(() => process.exit(1));
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err.message);
-  server.close(() => process.exit(1));
+  console.log(`🌐 Allowed origins:`, allowedOrigins);
 });
 
 module.exports = { app, server, io };
