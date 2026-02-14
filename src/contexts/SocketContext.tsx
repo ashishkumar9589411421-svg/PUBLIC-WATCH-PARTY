@@ -39,10 +39,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize socket connection
   useEffect(() => {
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-    });
+    const socket = io(
+  import.meta.env.VITE_API_URL?.replace('/api','') || 
+  "https://watchparty-backend-jx6f.onrender.com",
+  {
+    transports: ["websocket"],
+    withCredentials: true
+  }
+);
+
 
     socketRef.current = socket;
 
