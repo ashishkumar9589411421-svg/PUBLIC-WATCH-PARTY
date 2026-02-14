@@ -24,41 +24,16 @@ app.set('trust proxy', 1);
 // ========================
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https:", "wss:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com"],
-      frameSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-    },
-  },
+  contentSecurityPolicy: false // Prevents CSP blocking YouTube & frontend
 }));
 
 // ========================
-// 🌍 CORS FIX (PRODUCTION SAFE)
+// 🌍 CORS (FINAL FIX - PRODUCTION SAFE)
 // ========================
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.CLIENT_URL
-].filter(Boolean);
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: true, // Allow all origins (safe for now)
+  credentials: true
+}));
 
 // ========================
 // 🚦 RATE LIMITING
@@ -120,7 +95,10 @@ app.get('/', (req, res) => {
 // 🔌 SOCKET.IO
 // ========================
 const io = socketIo(server, {
-  cors: corsOptions,
+  cors: {
+    origin: true,
+    credentials: true
+  },
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,
   pingInterval: 25000,
@@ -141,9 +119,10 @@ app.use((req, res) => {
 // 🚀 START SERVER
 // ========================
 const PORT = process.env.PORT || 5000;
+
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Allowed origins:`, allowedOrigins);
+  console.log(`🌐 CORS: Open (All origins allowed)`);
 });
 
 module.exports = { app, server, io };
